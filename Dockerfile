@@ -1,61 +1,31 @@
-FROM ubuntu:jammy
-LABEL Author="Raja Subramanian" Description="A comprehensive docker image to run Apache-2.4 PHP-8.1 applications like Wordpress, Laravel, etc"
+FROM ubuntu:bionic
+LABEL Author="Taihsiang Ho" Description="Hypha php-apache host"
 
 
-# Stop dpkg-reconfigure tzdata from prompting for input
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install apache and php7
-RUN apt-get update && \
-    apt-get -y install \
+RUN apt-get update
+RUN apt-get install -y \
         apache2 \
-        libapache2-mod-php \
-        libapache2-mod-auth-openidc \
-        php-cli \
-        php-curl \
-        php-mbstring \
-        php-gd \
-        php-mysql \
-        php-json \
-        php-ldap \
-        php-mime-type \
-        php-pgsql \
-        php-tidy \
-        php-intl \
-        php-xmlrpc \
-        php-soap \
-        php-uploadprogress \
-        php-zip \
+        php \
+        libapache2-mod-php
+# Enable php module
+RUN a2enmod rewrite
+# The following settings are specific to being containerized
 # Ensure apache can bind to 80 as non-root
-        libcap2-bin && \
-    setcap 'cap_net_bind_service=+ep' /usr/sbin/apache2 && \
-    dpkg --purge libcap2-bin && \
-    apt-get -y autoremove && \
+RUN apt-get install -y libcap2-bin
+RUN    setcap 'cap_net_bind_service=+ep' /usr/sbin/apache2
+RUN apt-get purge -y libcap2-bin
+RUN apt-get autoremove -y
+COPY src/apache2.conf /etc/apache2/
+COPY src/000-default.conf /etc/apache2/sites-available/
+COPY src/default-ssl.conf /etc/apache2/sites-available/
 # As apache is never run as root, change dir ownership
-    a2disconf other-vhosts-access-log && \
-    chown -Rh www-data. /var/run/apache2 && \
-# Install ImageMagick CLI tools
-    apt-get -y install --no-install-recommends imagemagick && \
-# Clean up apt setup files
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-# Setup apache
-    a2enmod rewrite headers expires ext_filter
-
-# Override default apache and php config
-COPY src/000-default.conf /etc/apache2/sites-available
-COPY src/mpm_prefork.conf /etc/apache2/mods-available
-COPY src/status.conf      /etc/apache2/mods-available
-COPY src/99-local.ini     /etc/php/7.4/apache2/conf.d
+RUN a2disconf other-vhosts-access-log
+RUN chown -Rh www-data. /var/run/apache2
 
 # Expose details about this docker image
-COPY src/index.php /var/www/html
-RUN rm -f /var/www/html/index.html && \
-    mkdir /var/www/html/.config && \
-    tar cf /var/www/html/.config/etc-apache2.tar etc/apache2 && \
-    tar cf /var/www/html/.config/etc-php.tar     etc/php && \
-    dpkg -l > /var/www/html/.config/dpkg-l.txt
-
+COPY ./hypha-instance /var/www/html/
 
 EXPOSE 80
 USER www-data
