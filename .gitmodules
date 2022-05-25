@@ -1,0 +1,3 @@
+[submodule "hypha-instance"]
+	path = hypha-instance
+	url = https://github.com/PlanBCode/hypha.git
